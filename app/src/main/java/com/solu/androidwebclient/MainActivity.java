@@ -1,5 +1,7 @@
 package com.solu.androidwebclient;
 
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -7,8 +9,10 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -26,6 +30,8 @@ public class MainActivity extends AppCompatActivity {
     HttpURLConnection con;
     Thread connectThread;/*안드로이드는 네트워크 작업은 절대
     메인스레드에서 하면 안된다*/
+    BufferedReader buffr;
+    Handler handler;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,6 +40,14 @@ public class MainActivity extends AppCompatActivity {
 
         txt_url = (EditText)findViewById(R.id.txt_url);
         txt_content=(TextView)findViewById(R.id.txt_content);
+
+        handler = new Handler(){
+            @Override
+            public void handleMessage(Message msg) {
+                String content=msg.getData().getString("content");
+                txt_content.setText(content);
+            }
+        };
     }
 
     /* 지정한  url의 데이터를 디바이스로 가져오기 !!*/
@@ -46,13 +60,37 @@ public class MainActivity extends AppCompatActivity {
             con.setRequestMethod("GET");
             con.setDoInput(true);
             InputStream is=con.getInputStream();
+            buffr = new BufferedReader(new InputStreamReader(is,"utf-8"));
+
+            String data=null;
+            StringBuffer sb = new StringBuffer();
+
+            while(true){
+                data=buffr.readLine();
+                if(data==null)break;
+                sb.append(data);
+            }
+            //핸들러에게 부탁!!
+            Message message = new Message();
+            Bundle bundle = new Bundle();
+            bundle.putString("content", sb.toString());
+            message.setData(bundle);
+
+            handler.sendMessage(message);
 
             Log.d(TAG, "is  는"+is);
-
         } catch (MalformedURLException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
+        }finally{
+            if(buffr!=null){
+                try {
+                    buffr.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
 
     }
